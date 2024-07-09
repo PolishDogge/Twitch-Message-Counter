@@ -1,4 +1,3 @@
-
 import socket
 import json
 import re
@@ -6,46 +5,51 @@ import time
 from collections import defaultdict
 import threading
 from time import sleep
+from os import path, mkdir
 
 from twitchHandler import TwitchHandler
 
-MESSAGE_COUNTS_FILE = "message_counts.json"
-
-
-try:
-    with open(MESSAGE_COUNTS_FILE, "r") as file:
-        message_counts = defaultdict(int, json.load(file))
-except FileNotFoundError:
-    message_counts = defaultdict(int)
-
-def save_message_counts():
-    with open(MESSAGE_COUNTS_FILE, "w") as file:
+def save_message_counts(channel, message_counts):
+    filename = f"{channel}_messages.json"
+    if not path.exists('/counts'):
+        mkdir('counts')
+    with open(f'counts/{filename}', "w") as file:
         json.dump(dict(message_counts), file)
 
-def connect_to_twitch_irc():
+def load_message_counts(channel):
+    filename = f"{channel}_messages.json"
+    try:
+        if not path.exists('/counts'):
+            mkdir('counts')
+        with open(f'counts/{filename}', "r") as file:
+            return defaultdict(int, json.load(file))
+    except FileNotFoundError:
+        return defaultdict(int)
+
+def connect_to_twitch_irc(channel, token):
     irc_socket = socket.socket()
+    message_counts = load_message_counts(channel)
 
     try:
         irc_socket.connect((server, port))
     except Exception as e:
-        print(f"Error connecting to Twitch IRC: {e}")
+        print(f"Error connecting to Twitch IRC for {channel}: {e}")
         return
 
-    token = TwitchHandler.get_oauth_token()
     irc_socket.send(f"PASS oauth:{token}\n".encode("utf-8"))
     irc_socket.send(f"NICK {nickname}\n".encode("utf-8"))
     irc_socket.send(f"JOIN #{channel}\n".encode("utf-8"))
 
-    print('Connected!')
-    print(f'Started at {time.strftime("%H:%M")}')
-    print('='*20)
+    print(f'Connected to @{channel}!')
+    #print(f'Started at {time.strftime("%H:%M")}')
+    #print('='*20)
 
     def check_token():
         while True:
             time.sleep(1800)
             if TwitchHandler.token_needs_refreshing():
                 new_token = TwitchHandler.load_tokens()['access_token']
-                print('<INFO> | Token Refreshed.')
+                print(f'<INFO> | Token Refreshed for {channel}.')
                 irc_socket.send(f"PASS oauth:{new_token}\n".encode("utf-8"))
 
     threading.Thread(target=check_token, daemon=True).start()
@@ -54,34 +58,40 @@ def connect_to_twitch_irc():
         try:
             data = irc_socket.recv(1024).decode("utf-8")
         except ConnectionResetError:
-            print('<ERROR> | Connection to Twitch IRC reset.')
+            print(f'<ERROR> | Connection to Twitch IRC reset for {channel}.')
             break
         except Exception as e:
-            print(f"<ERROR> | {e}")
+            print(f"<ERROR> | {e} for {channel}")
             break
 
         if not data:
-            print('No Data, restarting connection')
-            irc_socket.detach()
+            print(f'No Data for {channel}, restarting connection')
             irc_socket.close()
             sleep(5)
-            connect_to_twitch_irc()
+            connect_to_twitch_irc(channel)
 
         match = re.match(r":([^!]+)![^ ]+ PRIVMSG #[^ ]+ :(.+)", data)
         if match:
             username = match.group(1)
             message = match.group(2)
             message_counts[username] += 1
-            save_message_counts()
+            save_message_counts(channel, message_counts)
 
-            print(f'{username} ({message_counts[username]}): {message}')
+            print(f'{channel} | {username} ({message_counts[username]}): {message}')
 
     irc_socket.close()
-            
 
 if __name__ == "__main__":
     server = "irc.chat.twitch.tv"
     port = 6667
     nickname = "polishdogge"
-    channel = "polishdogge"
-    connect_to_twitch_irc()
+    channels = ["polishdogge", "skeej_inc", "mrbarebunz"]
+    token = TwitchHandler.get_oauth_token()
+    threads = []
+    for channel in channels:
+        thread = threading.Thread(target=connect_to_twitch_irc, args=(channel,token,))
+        thread.start()
+        threads.append(thread)
+
+    for thread in threads:
+        thread.join()
