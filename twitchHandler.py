@@ -4,6 +4,7 @@ import requests
 from time import time
 
 #################
+TOKEN_FILE = 'oauth_tokens.json'
 client_id = ""
 client_secret = ""
 redirect_uri = "http://localhost"
@@ -12,13 +13,13 @@ redirect_uri = "http://localhost"
 class TwitchHandler:
     global client_id, client_secret, redirect_uri
     # Save the token for later use
-    def save_tokens(tokens, file='oauth_tokens.json'):
-        with open(file, "w") as f:
-            json.dump(tokens, file)
+    def save_tokens(tokens):
+        with open(TOKEN_FILE, "w") as f:
+            json.dump(tokens, TOKEN_FILE)
 
-    def load_tokens(file='oauth_tokens.json'):
+    def load_tokens():
         try:
-            with open(file, "r") as f:
+            with open(TOKEN_FILE, "r") as f:
                 return json.load(f)
         except FileNotFoundError:
             return None

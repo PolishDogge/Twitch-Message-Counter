@@ -1,7 +1,7 @@
 import socket
 import json
 import re
-import time
+from time import sleep
 from collections import defaultdict
 import threading
 from time import sleep
@@ -11,7 +11,7 @@ from twitchHandler import TwitchHandler
 
 def save_message_counts(channel, message_counts):
     filename = f"{channel}_messages.json"
-    if not path.exists('/counts'):
+    if not path.exists('counts'):
         mkdir('counts')
     with open(f'counts/{filename}', "w") as file:
         json.dump(dict(message_counts), file)
@@ -19,7 +19,7 @@ def save_message_counts(channel, message_counts):
 def load_message_counts(channel):
     filename = f"{channel}_messages.json"
     try:
-        if not path.exists('/counts'):
+        if not path.exists('counts'):
             mkdir('counts')
         with open(f'counts/{filename}', "r") as file:
             return defaultdict(int, json.load(file))
@@ -41,12 +41,10 @@ def connect_to_twitch_irc(channel, token):
     irc_socket.send(f"JOIN #{channel}\n".encode("utf-8"))
 
     print(f'Connected to @{channel}!')
-    #print(f'Started at {time.strftime("%H:%M")}')
-    #print('='*20)
 
     def check_token():
         while True:
-            time.sleep(1800)
+            sleep(1800)
             if TwitchHandler.token_needs_refreshing():
                 new_token = TwitchHandler.load_tokens()['access_token']
                 print(f'<INFO> | Token Refreshed for {channel}.')
@@ -68,7 +66,7 @@ def connect_to_twitch_irc(channel, token):
             print(f'No Data for {channel}, restarting connection')
             irc_socket.close()
             sleep(5)
-            connect_to_twitch_irc(channel)
+            connect_to_twitch_irc(channel, token)
 
         match = re.match(r":([^!]+)![^ ]+ PRIVMSG #[^ ]+ :(.+)", data)
         if match:
@@ -85,7 +83,7 @@ if __name__ == "__main__":
     server = "irc.chat.twitch.tv"
     port = 6667
     nickname = "polishdogge"
-    channels = ["polishdogge", "skeej_inc", "mrbarebunz"]
+    channels = ["polishdogge"]
     token = TwitchHandler.get_oauth_token()
     threads = []
     for channel in channels:
