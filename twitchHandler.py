@@ -15,7 +15,7 @@ class TwitchHandler:
     # Save the token for later use
     def save_tokens(tokens):
         with open(TOKEN_FILE, "w") as f:
-            json.dump(tokens, TOKEN_FILE)
+            json.dump(tokens, f)
 
     def load_tokens():
         try:
