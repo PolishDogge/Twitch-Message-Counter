@@ -15,4 +15,4 @@ The amount of chat messages is kept in a folder called `counts` with a file name
 * `time` module
 * `threading` module
 * `collections` module
-* `json module`
+* `json` module
